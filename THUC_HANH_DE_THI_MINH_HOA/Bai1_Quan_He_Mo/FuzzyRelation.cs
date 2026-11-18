@@ -38,16 +38,16 @@ public partial class FuzzyRelation<T1, T2> where T1 : notnull where T2 : notnull
 
 		result.Append("   ");
 		result.Append($"{"u\\v",-8}");
-		foreach (var column in Universe2.GetAllElements())
+		foreach (T2 column in Universe2.GetAllElements())
 		{
 			result.Append($"{column,8}");
 		}
 
 		result.AppendLine();
-		foreach (var row in Universe1.GetAllElements())
+		foreach (T1 row in Universe1.GetAllElements())
 		{
 			result.Append($"{row,8}");
-			foreach (var column in Universe2.GetAllElements())
+			foreach (T2 column in Universe2.GetAllElements())
 			{
 				result.Append($"{this[row, column],8:0.###}");
 			}

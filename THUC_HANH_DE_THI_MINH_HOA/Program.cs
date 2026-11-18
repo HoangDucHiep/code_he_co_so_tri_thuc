@@ -76,15 +76,15 @@ Console.WriteLine("3. Tổng hợp hai quan hệ bằng phép giao min:");
 Console.WriteLine("   R(u,v) = min(R1(u,v), R2(u,v))");
 Console.WriteLine(r);
 
-var input = FuzzySet<int>.Fuzzify.Singleton(temperatureUniverse, 25, "X = 25");
+FuzzySet<int> input = FuzzySet<int>.Fuzzify.Singleton(temperatureUniverse, 25, "X = 25");
 Console.WriteLine("4. Mờ hóa đơn trị X = 25:");
-Console.WriteLine("   A'25 = 0/20 + 1/25 + 0/30 + 0/35");
+Console.WriteLine($"   A'25 = {input.ToMembershipExpression()}");
 Console.WriteLine(input);
 
 Console.WriteLine("5. Hợp thành max-min:");
 Console.WriteLine("   B' = A'25 o R");
 Console.WriteLine("   B'(v) = max_u min(A'25(u), R(u,v))");
-var output = r.Compose(input, composition);
+FuzzySet<int> output = r.Compose(input, composition);
 Console.WriteLine(output);
 
 var crispOutput = FuzzySet<int>.Defuzzify.MaxMembership(output);
@@ -94,13 +94,12 @@ Console.WriteLine($"   max B'(v) = max{{{string.Join(", ", output.Universe.GetAl
 Console.WriteLine($"   Giá trị cực đại đạt tại y = {crispOutput} vòng/phút.");
 Console.WriteLine();
 Console.WriteLine("KẾT LUẬN:");
-Console.WriteLine($"   B' = 0.9/400 + 0.8/800 + 0.4/1200");
+Console.WriteLine($"   B' = {output.ToMembershipExpression()}");
 Console.WriteLine($"   Giá trị điều khiển đầu ra sau khi khử mờ: y* = {crispOutput} vòng/phút.");
 Console.WriteLine();
 
 Console.WriteLine("============================================================");
 Console.WriteLine("b)");
-Console.WriteLine("Dữ kiện: A' = 0.1/20 + 0.4/25 + 0.8/30 + 0.6/35.");
 Console.WriteLine("Phép kéo theo: Dienes-Rescher.");
 Console.WriteLine("Phép tổng hợp quan hệ: min.");
 Console.WriteLine("Phép hợp thành: max-product.");
@@ -118,6 +117,7 @@ var inputB = new FuzzySet<int>(
 	},
 	"A' - Câu b");
 
+Console.WriteLine($"Dữ kiện: A' = {inputB.ToMembershipExpression()}.");
 var implicationB = new DienesRescherImplication();
 var compositionB = new MaxProductComposition();
 var r1B = FuzzyRelation<int, int>.Implication(a1, b1, implicationB, "R1");
@@ -125,7 +125,7 @@ var r2B = FuzzyRelation<int, int>.Implication(a2, b2, implicationB, "R2");
 var rB = FuzzyRelation<int, int>.Intersect(r1B, r2B, "R");
 
 Console.WriteLine("1. Mờ hóa đầu vào:");
-Console.WriteLine("   A' = 0.1/20 + 0.4/25 + 0.8/30 + 0.6/35");
+Console.WriteLine($"   A' = {inputB.ToMembershipExpression()}");
 Console.WriteLine(inputB);
 
 Console.WriteLine("2. Ma trận quan hệ R1 theo Dienes-Rescher:");
@@ -138,7 +138,7 @@ Console.WriteLine(rB);
 
 Console.WriteLine("5. Hợp thành max-product:");
 Console.WriteLine("   B'(v) = max_u [A'(u) * R(u,v)]");
-var outputB = rB.Compose(inputB, compositionB);
+FuzzySet<int> outputB = rB.Compose(inputB, compositionB);
 Console.WriteLine(outputB);
 
 var crispOutputB = FuzzySet<int>.Defuzzify.Centroid(outputB, y => y);
@@ -153,6 +153,7 @@ Console.WriteLine("6. Khử mờ bằng phương pháp trọng tâm:");
 Console.WriteLine($"   y* = Σ(y * B'(y)) / ΣB'(y)");
 Console.WriteLine($"      = {weightedSumB:0.###} / {membershipSumB:0.###}");
 Console.WriteLine($"      = {crispOutputB:0.###} vòng/phút.");
+Console.WriteLine($"   B' = {outputB.ToMembershipExpression()}");
 Console.WriteLine();
 
 /* Bài 2  ============================================================================*/
@@ -181,7 +182,7 @@ Console.WriteLine("Tập luật R:");
 Console.WriteLine(originalRuleSet);
 Console.WriteLine();
 
-var (hasExplicitConflicts, explicitConflicts) = originalRuleSet.CheckExplicitConflicts();
+(bool hasExplicitConflicts, List<(Rule First, Rule Second)>? explicitConflicts) = originalRuleSet.CheckExplicitConflicts();
 
 if (!hasExplicitConflicts)
 {
@@ -197,7 +198,7 @@ else
 	}
 	else
 	{
-		foreach (var (first, second) in explicitConflicts)
+		foreach ((Rule? first, Rule? second) in explicitConflicts)
 		{
 			Console.WriteLine(
 				$"   ({first.Name}, {second.Name})");
@@ -220,9 +221,9 @@ var remainingRuleSet = new RuleSet(originalRuleSet.Rules.Select(rule => rule));
 
 if (hasExplicitConflicts)
 {
-	foreach (var (first, second) in explicitConflicts!)
+	foreach ((Rule? first, Rule? second) in explicitConflicts!)
 	{
-		var ruleWithLowerWeight = first.Weight <= second.Weight ? first : second;
+		Rule ruleWithLowerWeight = first.Weight <= second.Weight ? first : second;
 
 		Console.WriteLine(
 			$"Xử lý cặp ({first.Name}, {second.Name}):");
@@ -245,7 +246,7 @@ Console.WriteLine();
 // b) Tập vế trái tối đại.
 Console.WriteLine("============================================================");
 Console.WriteLine("b) ");
-var (maximumLhs, partitionedRuleSets) = remainingRuleSet.PartitionByMaximumLhs();
+(List<HashSet<string>>? maximumLhs, List<RuleSet>? partitionedRuleSets) = remainingRuleSet.PartitionByMaximumLhs();
 
 Console.WriteLine("Các tập luật con được phân hoạch theo vế trái tối đại:");
 for (var i = 1; i <= maximumLhs.Count; i++)
@@ -253,43 +254,29 @@ for (var i = 1; i <= maximumLhs.Count; i++)
 	Console.WriteLine($"R{i} = {{{string.Join(", ", partitionedRuleSets[i - 1].Rules.Select(rule => rule.Name))}}} -> F{i} = {{{string.Join(", ", maximumLhs[i - 1])}}}");
 }
 
-var closures = maximumLhs.Select(remainingRuleSet.GetClosureOfFacts).ToList();
+var closures = maximumLhs
+	.Select(lhs => RuleSet.GetClosure(lhs, remainingRuleSet))
+	.ToList();
 Console.WriteLine();
 Console.WriteLine("Các bao đóng tương ứng:");
 for (var i = 1; i <= closures.Count; i++)
 {
-	Console.WriteLine($"Bao đóng F{i}⁺ = {{{string.Join(", ", closures[i - 1])}}}");
+	Console.WriteLine($"Bao đóng F{i}⁺ = {{{string.Join(", ", closures[i - 1].Facts)}}}");
 }
 
 // Kiểm tra mâu thuẫn không tường minh.
 bool isImplicitConflict = false;
-var implicitConflicts = new HashSet<(string Fact, string NegatedFact)>();
 
-foreach (var closure in closures)
+foreach (ClosureResult closure in closures)
 {
-	var conflictsInClosure = new HashSet<(string Fact, string NegatedFact)>();
+	(bool hasConflicts, HashSet<(string f1, string f2)>? conflictsInClosure) = closure.CheckConflicts();
 
-	foreach (var fact in closure)
-	{
-		var negatedFact = Rule.Negate(fact);
-
-		if (!closure.Contains(negatedFact))
-			continue;
-
-		var pair = string.CompareOrdinal(fact, negatedFact) < 0
-			? (fact, negatedFact)
-			: (negatedFact, fact);
-
-		conflictsInClosure.Add(pair);
-		implicitConflicts.Add(pair);
-	}
-
-	if (conflictsInClosure.Count > 0)
+	if (hasConflicts && conflictsInClosure is not null)
 	{
 		isImplicitConflict = true;
 		Console.WriteLine();
-		Console.WriteLine($"=> Có mâu thuẫn không tường minh trong R' với bao đóng F⁺ = {{{string.Join(", ", closure)}}}:");
-		foreach (var (fact, negatedFact) in conflictsInClosure)
+		Console.WriteLine($"=> Có mâu thuẫn không tường minh trong R' với bao đóng F⁺ = {{{string.Join(", ", closure.Facts)}}}:");
+		foreach ((string? fact, string? negatedFact) in conflictsInClosure)
 		{
 			Console.WriteLine($"   Cặp mâu thuẫn: ({fact}, {negatedFact})");
 		}
@@ -297,7 +284,7 @@ foreach (var closure in closures)
 	else
 	{
 		Console.WriteLine();
-		Console.WriteLine($"=> Không có mâu thuẫn không tường minh trong R' với bao đóng F⁺ = {{{string.Join(", ", closure)}}}.");
+		Console.WriteLine($"=> Không có mâu thuẫn không tường minh trong R' với bao đóng F⁺ = {{{string.Join(", ", closure.Facts)}}}.");
 	}
 
 }
@@ -318,36 +305,19 @@ Console.WriteLine();
 Console.WriteLine("============================================================");
 Console.WriteLine("c) Xử lý mâu thuẫn không tường minh");
 Console.WriteLine("============================================================");
-if (isImplicitConflict)
-{
-	var finalRuleSet = new RuleSet(
+
+var finalRuleSet = new RuleSet(
 		remainingRuleSet.Rules.Select(rule => rule));
 
-	foreach (var (fact, negatedFact) in implicitConflicts)
+if (isImplicitConflict)
+{
+	var rulesToRemove = closures
+		.SelectMany(closure => closure.GetRulesToRemoveForConflicts())
+		.ToHashSet();
+
+	foreach (Rule ruleToRemove in rulesToRemove)
 	{
-		var factRule = finalRuleSet.Rules
-			.FirstOrDefault(rule => rule.RHS == fact);
-		var negatedFactRule = finalRuleSet.Rules
-			.FirstOrDefault(rule => rule.RHS == negatedFact);
-
 		Console.WriteLine();
-		Console.WriteLine($"Cặp mâu thuẫn: ({fact}, {negatedFact})");
-		Console.WriteLine(
-			factRule is null
-				? $"   Không có luật trực tiếp sinh ra {fact}."
-				: $"   Luật sinh ra {fact}: {factRule.Name} (w={factRule.Weight}).");
-		Console.WriteLine(
-			negatedFactRule is null
-				? $"   Không có luật trực tiếp sinh ra {negatedFact}."
-				: $"   Luật sinh ra {negatedFact}: {negatedFactRule.Name} (w={negatedFactRule.Weight}).");
-
-		if (factRule is null || negatedFactRule is null)
-			continue;
-
-		var ruleToRemove = factRule.Weight <= negatedFactRule.Weight
-			? factRule
-			: negatedFactRule;
-
 		Console.WriteLine(
 			$"   Loại {ruleToRemove.Name} vì có trọng số nhỏ hơn.");
 
@@ -369,3 +339,79 @@ Console.WriteLine();
 Console.WriteLine("============================================================");
 Console.WriteLine("d) Xử lý luật và sự kiện dư thừa");
 Console.WriteLine("============================================================");
+Console.WriteLine("Tập luật đang xét R'':");
+Console.WriteLine(finalRuleSet);
+Console.WriteLine();
+var redundantRules = finalRuleSet.RemoveRedundantRules();
+if (redundantRules.Count == 0)
+{
+	Console.WriteLine("Không có luật dư thừa trong R''.");
+}
+else
+{
+	Console.WriteLine("Các luật dư thừa trong R'':");
+	foreach (RedundantRuleResult redundantRule in redundantRules)
+	{
+		var derivationChain = redundantRule.Closure
+			.GetDerivationRuleChain(redundantRule.Rule.RHS);
+
+		Console.WriteLine($"   {redundantRule.Rule}");
+		Console.WriteLine(
+			$"      Vì {redundantRule.Rule.RHS} đã được suy ra từ: " +
+			string.Join(" -> ", derivationChain.Select(rule => rule.Name)));
+	}
+
+	Console.WriteLine();
+	Console.WriteLine("Tập luật sau khi loại bỏ các luật dư thừa:");
+	Console.WriteLine(finalRuleSet);
+}
+
+Console.WriteLine();
+var redundantFacts = finalRuleSet.RemoveRedundantFacts();
+if (redundantFacts.Count == 0)
+{
+	Console.WriteLine("Không có sự kiện dư thừa trong vế trái của các luật.");
+}
+else
+{
+	Console.WriteLine("Các sự kiện dư thừa trong vế trái:");
+	foreach (RedundantFactResult redundantFact in redundantFacts)
+	{
+		var derivationChain = redundantFact.Closure
+			.GetDerivationRuleChain(redundantFact.Fact);
+
+		Console.WriteLine(
+			$"   {redundantFact.Rule.Name}: sự kiện {redundantFact.Fact} " +
+			"là dư thừa trong vế trái.");
+		Console.WriteLine(
+			$"      Vì {redundantFact.Fact} được suy ra từ: " +
+			string.Join(" -> ", derivationChain.Select(rule => rule.Name)));
+	}
+
+	Console.WriteLine();
+	Console.WriteLine("Tập luật sau khi loại bỏ các sự kiện dư thừa:");
+	Console.WriteLine(finalRuleSet);
+}
+
+Console.WriteLine();
+Console.WriteLine("============================================================");
+Console.WriteLine("e) Suy diễn tiến bằng hàng đợi");
+Console.WriteLine("============================================================");
+
+var forwardRuleSet = new RuleSet(
+[
+	new Rule("r1", ["a", "b"], "d", 0),
+	new Rule("r2", ["a"], "c", 0),
+	new Rule("r3", ["b"], "e", 0),
+	new Rule("r4", ["c", "d"], "f", 0),
+	new Rule("r5", ["e", "f"], "g", 0),
+	new Rule("r6", ["c"], "h", 0),
+	new Rule("r7", ["e", "h"], "k", 0),
+	new Rule("r8", ["g", "k"], "m", 0)
+]);
+
+InferenceEngine.ForwardChaining(
+	forwardRuleSet,
+	new HashSet<string>(["a", "b"]),
+	"g",
+	new InferenceEngine.QueueThoaStrategy());

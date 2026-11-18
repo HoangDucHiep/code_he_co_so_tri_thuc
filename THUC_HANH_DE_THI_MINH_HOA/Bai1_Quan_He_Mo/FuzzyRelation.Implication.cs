@@ -19,8 +19,8 @@ public partial class FuzzyRelation<T1, T2>
 			set2.Universe,
 			name);
 
-		foreach (var x in set1.Universe.GetAllElements())
-			foreach (var y in set2.Universe.GetAllElements())
+		foreach (T1 x in set1.Universe.GetAllElements())
+			foreach (T2 y in set2.Universe.GetAllElements())
 			{
 				relation[x, y] = strategy.Evaluate(set1[x], set2[y]);
 			}
@@ -48,8 +48,8 @@ public partial class FuzzyRelation<T1, T2>
 			first.Universe2,
 			name ?? $"({first.Name} giao {second.Name})");
 
-		foreach (var x in first.Universe1.GetAllElements())
-			foreach (var y in first.Universe2.GetAllElements())
+		foreach (T1 x in first.Universe1.GetAllElements())
+			foreach (T2 y in first.Universe2.GetAllElements())
 			{
 				result[x, y] = Math.Min(first[x, y], second[x, y]);
 			}

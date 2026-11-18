@@ -25,7 +25,7 @@ public class FuzzySet<T> where T : notnull
 	public FuzzySet(Universe<T> universe, IDictionary<T, double> memberships, string name = "A")
 				: this(universe, name)
 	{
-		foreach (var kv in memberships)
+		foreach (KeyValuePair<T, double> kv in memberships)
 			this[kv.Key] = kv.Value;
 	}
 
@@ -45,6 +45,15 @@ public class FuzzySet<T> where T : notnull
 
 	// Trả về độ thuộc của phần tử, mặc định là 0 nếu chưa được gán.
 	public double GetMembership(T x) => this[x];
+
+	// Định dạng tập mờ thành biểu thức tổng các phần tử và độ thuộc.
+	public string ToMembershipExpression()
+	{
+		return string.Join(
+			" + ",
+			Universe.GetAllElements()
+				.Select(value => $"{this[value]:0.###}/{value}"));
+	}
 
 	// Nhóm các phép mờ hóa để gọi theo cú pháp FuzzySet<T>.Fuzzify....
 	public static class Fuzzify
@@ -101,7 +110,7 @@ public class FuzzySet<T> where T : notnull
 
 		var result = new FuzzySet<T>(universe, name);
 
-		foreach (var value in universe.GetAllElements())
+		foreach (T value in universe.GetAllElements())
 		{
 			result[value] = EqualityComparer<T>.Default.Equals(value, crispValue)
 				? 1.0
@@ -122,7 +131,7 @@ public class FuzzySet<T> where T : notnull
 
 		var result = new FuzzySet<T>(universe, name);
 
-		foreach (var value in universe.GetAllElements())
+		foreach (T value in universe.GetAllElements())
 		{
 			result[value] = membershipFunction(value);
 		}
@@ -182,7 +191,7 @@ public class FuzzySet<T> where T : notnull
 		var result = new System.Text.StringBuilder();
 		result.AppendLine($"   {Name}:");
 
-		foreach (var value in Universe.GetAllElements())
+		foreach (T value in Universe.GetAllElements())
 		{
 			result.AppendLine(
 				$"      μ({value}) = {this[value]:0.###}");

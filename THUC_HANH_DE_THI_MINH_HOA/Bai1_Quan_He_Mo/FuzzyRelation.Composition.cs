@@ -21,9 +21,9 @@ public partial class FuzzyRelation<T1, T2>
 			Universe2,
 			$"({fuzzySet.Name} o {Name})[{strategy.Name}]");
 
-		foreach (var y in Universe2.GetAllElements())
+		foreach (T2 y in Universe2.GetAllElements())
 		{
-			var combinedValues = Universe1.GetAllElements()
+			IEnumerable<double> combinedValues = Universe1.GetAllElements()
 				.Select(x => strategy.Combine(fuzzySet[x], this[x, y]));
 
 			result[y] = strategy.Aggregate(combinedValues);

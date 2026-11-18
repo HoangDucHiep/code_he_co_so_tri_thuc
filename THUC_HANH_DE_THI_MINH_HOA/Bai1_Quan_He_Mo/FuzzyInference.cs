@@ -36,7 +36,7 @@ public static class FuzzyInference
 				rule.Name))
 			.ToList();
 
-		var combinedRelation = relations
+		FuzzyRelation<TInput, TOutput> combinedRelation = relations
 			.Skip(1)
 			.Aggregate(
 				relations[0],
