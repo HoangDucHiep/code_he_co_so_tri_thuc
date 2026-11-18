@@ -32,7 +32,7 @@ public class Rule
 	/// Kiểm tra xem vế trái của luật này có chứa vế trái của luật khác hay không.
 	/// Nghĩa là other có là một tập con của vế trái của luật này hay không.
 	/// </summary>
-	public bool HasLhsContaining(Rule other)
+	public bool HasLhsContainingOtherLhs(Rule other)
 	{
 		return other.LHS.IsSubsetOf(LHS);       // other là subset của this
 	}
@@ -44,7 +44,7 @@ public class Rule
 
 	public bool IsConflictingWith(Rule other)
 	{
-		return RHS == Negate(other.RHS) && (HasLhsContaining(other) || other.HasLhsContaining(this));
+		return RHS == Negate(other.RHS) && (HasLhsContainingOtherLhs(other) || other.HasLhsContainingOtherLhs(this));
 	}
 }
 
@@ -364,6 +364,7 @@ public class ClosureResult
 
 public class InferenceEngine
 {
+
 	public static void ForwardChaining(RuleSet ruleSet, HashSet<string> initialFacts, string goal, IThoaStategy thoa)
 	{
 		var tg = new HashSet<string>(initialFacts);
@@ -406,6 +407,164 @@ public class InferenceEngine
 				: $"Không đạt được mục tiêu {goal}.");
 	}
 
+
+
+	public static (RuleSet rGt, RuleSet rKl, Dictionary<Rule, int> hDict) Rpg(RuleSet ruleSet, HashSet<string> gt, string k)
+	{
+		var predecessors = ruleSet.Rules.ToDictionary(
+		rule => rule,
+		_ => new List<Rule>());
+
+		foreach (var rule in ruleSet.Rules)
+		{
+			foreach (var otherRule in ruleSet.Rules)
+			{
+				if (rule != otherRule && otherRule.LHS.Contains(rule.RHS))
+				{
+					predecessors[otherRule].Add(rule);
+				}
+			}
+		}
+
+		RuleSet rGt = new RuleSet(ruleSet.Rules.Where(rule => rule.LHS.IsSubsetOf(gt)).ToList());
+		RuleSet rKl = new RuleSet(ruleSet.Rules.Where(rule => rule.RHS == k).ToList());
+
+		var hDict = ruleSet.Rules.ToDictionary(rule => rule, _ => int.MaxValue);
+
+		var queue = new Queue<Rule>();
+
+		foreach (var rule in rKl.Rules)
+		{
+			hDict[rule] = 0;
+			queue.Enqueue(rule);
+		}
+
+		while (queue.Count > 0)
+		{
+			var currentRule = queue.Dequeue();
+			foreach (var pred in predecessors[currentRule])
+			{
+				if (hDict[pred] != int.MaxValue)
+				{
+					continue;
+				}
+
+				hDict[pred] = hDict[currentRule] + 1;
+				queue.Enqueue(pred);
+			}
+		}
+
+
+		// print predecessors
+		foreach (var kvp in predecessors)
+		{
+			var rule = kvp.Key;
+			var preds = kvp.Value;
+			if (preds.Count > 0)
+			{
+				foreach (var pred in preds)
+				{
+					Console.WriteLine($"{pred.Name} -> {rule.Name}");
+				}
+			}
+		}
+
+
+		return (rGt, rKl, hDict);
+	}
+
+	public interface IThoaStategy
+	{
+		Rule? NextRule();
+		bool HasNextRule();
+		void UpdateThoa(HashSet<string> tg, RuleSet R);
+		IReadOnlyList<Rule> GetPendingRules();
+	}
+
+	public class QueueThoaStrategy : IThoaStategy
+	{
+		private readonly Queue<Rule> _rules = new();
+
+		public bool HasNextRule()
+		{
+			return _rules.Count > 0;
+		}
+
+		public Rule? NextRule()
+		{
+			return _rules.Count > 0 ? _rules.Dequeue() : null;
+		}
+
+		public void UpdateThoa(HashSet<string> tg, RuleSet R)
+		{
+			var newRules = new List<Rule>();
+
+			foreach (var rule in R.Rules)
+			{
+				if (rule.LHS.IsSubsetOf(tg) && !_rules.Contains(rule))
+				{
+					newRules.Add(rule);
+				}
+			}
+			foreach (var rule in newRules)
+			{
+				_rules.Enqueue(rule);
+			}
+		}
+
+		public IReadOnlyList<Rule> GetPendingRules()
+		{
+			return [.. _rules];
+		}
+	}
+
+	public class RpgThoaStrategy : IThoaStategy
+	{
+		private readonly Dictionary<Rule, int> _h;
+		private readonly PriorityQueue<Rule, int> _rules = new();
+
+		public RpgThoaStrategy(Dictionary<Rule, int> h)
+		{
+			_h = h;
+		}
+
+		public Rule? NextRule()
+		{
+			return _rules.Count > 0 ? _rules.Dequeue() : null;
+		}
+
+		public bool HasNextRule()
+		{
+			return _rules.Count > 0;
+		}
+
+		public void UpdateThoa(HashSet<string> tg, RuleSet R)
+		{
+			foreach (var rule in R.Rules)
+			{
+				if (rule.LHS.IsSubsetOf(tg) && !GetPendingRules().Contains(rule))
+				{
+					_rules.Enqueue(rule, GetPriority(rule));
+				}
+			}
+		}
+
+		public IReadOnlyList<Rule> GetPendingRules()
+		{
+			return [.. _rules.UnorderedItems.Select(r => r.Element)];
+		}
+
+		private int GetPriority(Rule rule)
+		{
+			return _h.TryGetValue(rule, out int h)
+				? h
+				: int.MaxValue;
+		}
+	}
+
+
+
+	// ========================== HELPERS =========================
 	private static void PrintTable(List<ForwardChainingState> states)
 	{
 		int selectedWidth = Math.Max(1, states.Max(state => (state.SelectedRule?.Name ?? "-").Length));
@@ -499,59 +658,5 @@ public class InferenceEngine
 		}
 	}
 
-
-
-	public static class ThoaStrategy
-	{
-		public static QueueThoaStrategy QUEUE = new();
-
-	}
-
-
-
-	public interface IThoaStategy
-	{
-		Rule? NextRule();
-		bool HasNextRule();
-		void UpdateThoa(HashSet<string> tg, RuleSet R);
-		IReadOnlyList<Rule> GetPendingRules();
-	}
-
-	public class QueueThoaStrategy : IThoaStategy
-	{
-		private readonly Queue<Rule> _rules = new();
-
-		public bool HasNextRule()
-		{
-			return _rules.Count > 0;
-		}
-
-		public Rule? NextRule()
-		{
-			return _rules.Count > 0 ? _rules.Dequeue() : null;
-		}
-
-		public void UpdateThoa(HashSet<string> tg, RuleSet R)
-		{
-			var newRules = new List<Rule>();
-
-			foreach (var rule in R.Rules)
-			{
-				if (rule.LHS.IsSubsetOf(tg) && !_rules.Contains(rule))
-				{
-					newRules.Add(rule);
-				}
-			}
-			foreach (var rule in newRules)
-			{
-				_rules.Enqueue(rule);
-			}
-		}
-
-		public IReadOnlyList<Rule> GetPendingRules()
-		{
-			return [.. _rules];
-		}
-	}
 
 }

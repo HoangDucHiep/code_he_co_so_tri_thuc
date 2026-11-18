@@ -410,8 +410,34 @@ var forwardRuleSet = new RuleSet(
 	new Rule("r8", ["g", "k"], "m", 0)
 ]);
 
+Console.WriteLine();
 InferenceEngine.ForwardChaining(
 	forwardRuleSet,
 	new HashSet<string>(["a", "b"]),
 	"g",
 	new InferenceEngine.QueueThoaStrategy());
+
+
+
+var (rGt, rKl, hDict) = InferenceEngine.Rpg(
+	forwardRuleSet,
+	new HashSet<string>(["a", "b"]),
+	"g");
+
+Console.WriteLine($"R(GT): {{{string.Join(", ", rGt.Rules.Select(x => x.Name))}}}");
+Console.WriteLine($"R(KL): {{{string.Join(", ", rKl.Rules.Select(x => x.Name))}}}");
+
+Console.WriteLine("h values:");
+foreach (var kvp in hDict)
+{
+	var rule = kvp.Key;
+	var hValue = kvp.Value;
+	Console.WriteLine($"{rule.Name}: {(hValue == int.MaxValue ? "∞" : hValue.ToString())}");
+}
+
+
+InferenceEngine.ForwardChaining(
+	forwardRuleSet,
+	new HashSet<string>(["a", "b"]),
+	"g",
+	new InferenceEngine.RpgThoaStrategy(hDict));
