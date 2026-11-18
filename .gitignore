@@ -1,1 +1,47 @@
 obj/
+bin/
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# Test and coverage output
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+Coverage/
+
+# Generated files
+*.pdb
+*.cache
+*.dll
+*.exe
+*.deps.json
+*.runtimeconfig.json
+
+# OS files
+.DS_Store
+Thumbs.db
